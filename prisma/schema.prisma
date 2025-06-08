@@ -1,0 +1,144 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          Role      @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  shop          Shop?     @relation("ShopOwner")
+  orders        Order[]   @relation("CustomerOrders")
+  notifications Notification[]
+}
+
+model Shop {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  logo          String?
+  banner        String?
+  theme         String    @default("sellio")
+  primaryColor  String    @default("#000000")
+  secondaryColor String   @default("#ffffff")
+  currency      String    @default("XOF")
+  contactEmail  String?
+  contactPhone  String?
+  address       String?
+  socialMedia   Json?
+  owner         User      @relation("ShopOwner", fields: [ownerId], references: [id])
+  ownerId       String    @unique
+  products      Product[]
+  orders        Order[]   @relation("ShopOrders")
+  notifications Notification[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Product {
+  id            String    @id @default(cuid())
+  name          String
+  description   String
+  price         Float
+  stock         Int
+  images        String[]
+  shop          Shop      @relation(fields: [shopId], references: [id])
+  shopId        String
+  orderItems    OrderItem[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  showStock     Boolean   @default(false)
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique
+  status        OrderStatus @default(PENDING)
+  total         Float
+  customerName  String
+  customerEmail String
+  customerPhone String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  customer      User        @relation("CustomerOrders", fields: [customerId], references: [id])
+  customerId    String
+  shop          Shop        @relation("ShopOrders", fields: [shopId], references: [id])
+  shopId        String
+  items         OrderItem[]
+  review        Review?
+
+  @@index([customerId])
+  @@index([shopId])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  order   Order  @relation(fields: [orderId], references: [id])
+  orderId String @unique
+
+  @@index([orderId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user   User  @relation(fields: [userId], references: [id])
+  userId String
+  shop   Shop  @relation(fields: [shopId], references: [id])
+  shopId String
+
+  @@index([userId])
+  @@index([shopId])
+}
+
+enum Role {
+  ADMIN
+  MERCHANT
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DELIVERED
+}
+
+enum NotificationType {
+  ORDER
+  SYSTEM
+  ALERT
+} 
